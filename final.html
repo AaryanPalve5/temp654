@@ -1,0 +1,719 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#26090c">
+
+<title>Filmy Friday — Scratch to Reveal</title>
+
+<style>
+  * {
+    box-sizing: border-box;
+  }
+
+  :root {
+    --gold: #ffca4f;
+    --gold-dark: #d99420;
+    --cream: #fff2d6;
+  }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    padding: clamp(14px, 3vw, 32px) 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    color: var(--cream);
+    font-family: Arial, Helvetica, sans-serif;
+    background:
+      radial-gradient(ellipse at 50% 0%, #761b1d 0%, #390c10 43%, #100508 100%);
+  }
+
+  .header {
+    width: min(100%, 1000px);
+    text-align: center;
+  }
+
+  .eyebrow {
+    margin: 0 0 8px;
+    color: var(--gold);
+    font-size: 12px;
+    font-weight: bold;
+    letter-spacing: 0.24em;
+  }
+
+  h1 {
+    margin: 0;
+    color: var(--gold);
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: clamp(23px, 4vw, 42px);
+    line-height: 1.2;
+    text-shadow: 0 2px 16px #ff9d3150;
+  }
+
+  .subtitle {
+    margin: 12px auto 0;
+    max-width: 650px;
+    font-size: clamp(13px, 2vw, 16px);
+    line-height: 1.6;
+    color: #f9dfbd;
+  }
+
+  /*
+    The stage preserves the source artwork's 3:2 ratio.
+    All layers share exactly the same responsive dimensions.
+  */
+
+  .stage {
+    position: relative;
+    width: min(100%, 1000px);
+    aspect-ratio: 3 / 2;
+    overflow: hidden;
+    isolation: isolate;
+    background: #18090a;
+    border: 2px solid var(--gold-dark);
+    border-radius: clamp(8px, 1.5vw, 15px);
+    box-shadow:
+      0 0 15px #ffb52e40,
+      0 0 38px #ff9b1820,
+      0 18px 45px #0008;
+  }
+
+  .stage img {
+    position: absolute;
+    inset: 0;
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: fill;
+  }
+
+  /* Image 0: complete mystery cover */
+  #image0 {
+    z-index: 1;
+  }
+
+  /*
+    The canvas is transparent everywhere except the
+    silver Mystery Theme rectangle.
+  */
+
+  #scratchCanvas {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    display: block;
+    width: 100%;
+    height: 100%;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    cursor: crosshair;
+  }
+
+  /* Image 1: the complete final invitation */
+  #image1 {
+    z-index: 3;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 850ms ease;
+  }
+
+  #image1.visible {
+    opacity: 1;
+  }
+
+  .stage.complete #scratchCanvas {
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 600ms ease;
+  }
+
+  .controls {
+    width: min(100%, 600px);
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 12px;
+  }
+
+  button {
+    min-height: 44px;
+    padding: 12px 22px;
+    border-radius: 30px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform 150ms ease, filter 150ms ease;
+  }
+
+  button:hover {
+    filter: brightness(1.08);
+    transform: translateY(-1px);
+  }
+
+  button:focus-visible {
+    outline: 3px solid white;
+    outline-offset: 3px;
+  }
+
+  .reveal-button {
+    color: #2b1005;
+    border: 0;
+    background: linear-gradient(135deg, #ffe998, #e9a51c);
+    box-shadow: 0 4px 14px #0003;
+  }
+
+  .reset-button {
+    color: var(--cream);
+    background: transparent;
+    border: 1px solid #d59c48;
+  }
+
+  .status {
+    min-height: 22px;
+    margin: 0;
+    color: #ffdf9d;
+    text-align: center;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  .footer {
+    max-width: 700px;
+    margin: 0;
+    color: #d8c1ac;
+    text-align: center;
+    font-size: 12px;
+    line-height: 1.6;
+  }
+
+  .error {
+    color: #ffb8a7;
+  }
+
+  @media (max-width: 600px) {
+    body {
+      justify-content: flex-start;
+      gap: 13px;
+      padding: 22px 10px;
+    }
+
+    .eyebrow {
+      font-size: 10px;
+    }
+
+    .stage {
+      border-width: 1px;
+    }
+
+    .controls {
+      gap: 9px;
+    }
+
+    button {
+      flex: 1 1 145px;
+      padding: 12px 10px;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      transition-duration: 0.01ms !important;
+    }
+  }
+</style>
+</head>
+
+<body>
+
+<header class="header">
+  <p class="eyebrow">★ THE OFFICE PREMIERE ★</p>
+
+  <h1>🎬 Your Filmy Friday Surprise Awaits!</h1>
+
+  <p class="subtitle">
+    Scratch the silver Mystery Theme panel to uncover
+    the full Filmy Friday Gala invitation.
+  </p>
+</header>
+
+<main class="stage" id="stage">
+
+  <!-- IMAGE 0: Mystery cover -->
+  <img
+    id="image0"
+    src="https://raw.githubusercontent.com/AmeyaNimkar22/filmy-friday-assets/main/image1.png"
+    alt="Filmy Friday mystery scratch card"
+    draggable="false"
+  >
+
+  <!-- Only the silver panel receives the scratch coating -->
+  <canvas
+    id="scratchCanvas"
+    aria-label="Scratch the silver Mystery Theme panel"
+  ></canvas>
+
+  <!-- IMAGE 1: Full invitation, shown at 50% scratched -->
+  <img
+    id="image1"
+    src="https://raw.githubusercontent.com/AmeyaNimkar22/filmy-friday-assets/main/image2.png"
+    alt="Full Filmy Friday Gala invitation"
+    draggable="false"
+  >
+
+</main>
+
+<div class="controls">
+  <button class="reveal-button" id="revealButton" type="button">
+    ✨ Reveal Invitation
+  </button>
+
+  <button class="reset-button" id="resetButton" type="button">
+    ↻ Start Again
+  </button>
+</div>
+
+<p class="status" id="status" aria-live="polite">
+  Scratch the silver panel to reveal the surprise!
+</p>
+
+<p class="footer">
+  Friday, 30 October 2026 · 4:00 PM – 5:30 PM · MS Teams
+  <br>
+  Dress Filmy. Speak Iconic. Own the Screen!
+</p>
+
+<script>
+(() => {
+  "use strict";
+
+  const stage = document.getElementById("stage");
+  const baseImage = document.getElementById("image0");
+  const finalImage = document.getElementById("image1");
+  const canvas = document.getElementById("scratchCanvas");
+  const status = document.getElementById("status");
+  const revealButton = document.getElementById("revealButton");
+  const resetButton = document.getElementById("resetButton");
+
+  const ctx = canvas.getContext("2d", {
+    willReadFrequently: true
+  });
+
+  // Reveal the second image when 50% of the panel is cleared.
+  const REVEAL_THRESHOLD = 0.50;
+
+  // Responsive scratch brush radius in CSS pixels.
+  const BRUSH_RADIUS = 22;
+
+  let dpr = 1;
+  let isDrawing = false;
+  let isComplete = false;
+  let lastPoint = null;
+  let progressTimer = 0;
+  let resizeObserver = null;
+
+  /*
+    SCRATCH PANEL COORDINATES
+
+    Relative to Image 0, not the browser window.
+
+    These coordinates match the supplied 1536 x 1024
+    mystery-cover artwork. Because the image and canvas
+    scale together, the panel remains aligned responsively.
+  */
+
+  const panel = {
+    x: 0.174,
+    y: 0.394,
+    w: 0.650,
+    h: 0.333
+  };
+
+  function getSize() {
+    return {
+      width: stage.clientWidth,
+      height: stage.clientHeight
+    };
+  }
+
+  function getPanelRect(width, height) {
+    return {
+      x: width * panel.x,
+      y: height * panel.y,
+      w: width * panel.w,
+      h: height * panel.h
+    };
+  }
+
+  /*
+    Draw the silver scratch coating.
+    No coating is drawn outside the Mystery Theme rectangle.
+  */
+
+  function drawFoil() {
+    const { width, height } = getSize();
+    const r = getPanelRect(width, height);
+
+    ctx.save();
+
+    // Clip the complete drawing to the scratch panel.
+    ctx.beginPath();
+    ctx.rect(r.x, r.y, r.w, r.h);
+    ctx.clip();
+
+    const gradient = ctx.createLinearGradient(
+      r.x, r.y, r.x + r.w, r.y + r.h
+    );
+
+    gradient.addColorStop(0, "#858581");
+    gradient.addColorStop(0.18, "#efede6");
+    gradient.addColorStop(0.35, "#aaa9a3");
+    gradient.addColorStop(0.52, "#f8f4eb");
+    gradient.addColorStop(0.72, "#a6a59e");
+    gradient.addColorStop(1, "#e9e4d8");
+
+    ctx.globalCompositeOperation = "source-over";
+    ctx.fillStyle = gradient;
+    ctx.fillRect(r.x, r.y, r.w, r.h);
+
+    // Metallic texture.
+    ctx.strokeStyle = "rgba(45,35,25,0.17)";
+    ctx.lineWidth = 1;
+
+    for (let i = -height; i < width + height; i += 12) {
+      ctx.beginPath();
+      ctx.moveTo(r.x + i, r.y);
+      ctx.lineTo(r.x + i - r.h * 0.35, r.y + r.h);
+      ctx.stroke();
+    }
+
+    // Scratch instructions.
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = "#211811";
+
+    const mainFont = Math.max(10, Math.min(28, r.w * 0.042));
+    const subFont = Math.max(9, Math.min(17, r.w * 0.023));
+
+    ctx.font = `900 ${mainFont}px Arial, sans-serif`;
+    ctx.fillText(
+      "✦ MYSTERY THEME ✦",
+      r.x + r.w / 2,
+      r.y + r.h * 0.47,
+      r.w * 0.91
+    );
+
+    ctx.font = `bold ${subFont}px Arial, sans-serif`;
+    ctx.fillText(
+      "SCRATCH HERE TO REVEAL",
+      r.x + r.w / 2,
+      r.y + r.h * 0.65,
+      r.w * 0.90
+    );
+
+    // Fine outline of the coating.
+    ctx.strokeStyle = "#fff0b8";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(r.x, r.y, r.w, r.h);
+
+    ctx.restore();
+  }
+
+  /*
+    Set the high-resolution canvas size.
+
+    The image, stage, and canvas all share the same
+    aspect ratio, keeping the scratch panel aligned.
+  */
+
+  function initializeCanvas() {
+    if (isComplete) return;
+
+    const { width, height } = getSize();
+
+    if (!width || !height) return;
+
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+
+    canvas.width = Math.round(width * dpr);
+    canvas.height = Math.round(height * dpr);
+
+    canvas.style.width = width + "px";
+    canvas.style.height = height + "px";
+
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, width, height);
+
+    drawFoil();
+
+    lastPoint = null;
+    status.textContent =
+      "Scratch the silver panel to reveal the surprise!";
+  }
+
+  function getPoint(event) {
+    const rect = canvas.getBoundingClientRect();
+
+    return {
+      x: event.clientX - rect.left,
+      y: event.clientY - rect.top
+    };
+  }
+
+  function isInsidePanel(point) {
+    const { width, height } = getSize();
+    const r = getPanelRect(width, height);
+
+    return (
+      point.x >= r.x &&
+      point.x <= r.x + r.w &&
+      point.y >= r.y &&
+      point.y <= r.y + r.h
+    );
+  }
+
+  /*
+    Erase the coating using the mouse or finger.
+    The canvas clip prevents erasing outside the panel.
+  */
+
+  function scratchTo(point) {
+    const { width, height } = getSize();
+    const r = getPanelRect(width, height);
+
+    ctx.save();
+
+    ctx.beginPath();
+    ctx.rect(r.x, r.y, r.w, r.h);
+    ctx.clip();
+
+    ctx.globalCompositeOperation = "destination-out";
+    ctx.lineWidth = BRUSH_RADIUS * 2;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+
+    ctx.beginPath();
+
+    if (lastPoint) {
+      ctx.moveTo(lastPoint.x, lastPoint.y);
+      ctx.lineTo(point.x, point.y);
+    } else {
+      ctx.arc(
+        point.x,
+        point.y,
+        BRUSH_RADIUS,
+        0,
+        Math.PI * 2
+      );
+    }
+
+    ctx.stroke();
+    ctx.restore();
+
+    lastPoint = point;
+  }
+
+  /*
+    Measure transparency only inside the panel.
+    Nothing outside the panel contributes to progress.
+  */
+
+  function getScratchProgress() {
+    const { width, height } = getSize();
+    const r = getPanelRect(width, height);
+
+    const x = Math.max(0, Math.floor(r.x * dpr));
+    const y = Math.max(0, Math.floor(r.y * dpr));
+
+    const w = Math.min(
+      canvas.width - x,
+      Math.ceil(r.w * dpr)
+    );
+
+    const h = Math.min(
+      canvas.height - y,
+      Math.ceil(r.h * dpr)
+    );
+
+    if (w <= 0 || h <= 0) return 0;
+
+    const pixels = ctx.getImageData(x, y, w, h).data;
+
+    let cleared = 0;
+    let samples = 0;
+
+    // Check every fourth pixel for performance.
+    for (let i = 3; i < pixels.length; i += 16) {
+      samples++;
+
+      if (pixels[i] < 50) {
+        cleared++;
+      }
+    }
+
+    return samples ? cleared / samples : 0;
+  }
+
+  function updateProgress() {
+    if (isComplete) return;
+
+    const ratio = getScratchProgress();
+    const percent = Math.min(100, Math.floor(ratio * 100));
+
+    status.textContent = `${percent}% of the mystery panel scratched`;
+
+    if (ratio >= REVEAL_THRESHOLD) {
+      revealInvitation();
+    }
+  }
+
+  function scheduleProgressCheck() {
+    if (progressTimer) return;
+
+    progressTimer = requestAnimationFrame(() => {
+      progressTimer = 0;
+      updateProgress();
+    });
+  }
+
+  /*
+    Reveal Image 1 in full after the threshold is reached.
+  */
+
+  function revealInvitation() {
+    if (isComplete) return;
+
+    isComplete = true;
+    isDrawing = false;
+    lastPoint = null;
+
+    stage.classList.add("complete");
+    finalImage.classList.add("visible");
+
+    status.textContent =
+      "🎉 Surprise revealed! Welcome to Filmy Friday Gala.";
+  }
+
+  /*
+    Pointer events support both mouse and touchscreen.
+    Scratching can start only inside the silver panel.
+  */
+
+  canvas.addEventListener("pointerdown", event => {
+    if (isComplete || !isInsidePanel(getPoint(event))) {
+      return;
+    }
+
+    isDrawing = true;
+    lastPoint = null;
+
+    if (canvas.setPointerCapture) {
+      canvas.setPointerCapture(event.pointerId);
+    }
+
+    scratchTo(getPoint(event));
+    scheduleProgressCheck();
+
+    event.preventDefault();
+  });
+
+  canvas.addEventListener("pointermove", event => {
+    if (!isDrawing || isComplete) return;
+
+    const point = getPoint(event);
+
+    if (!isInsidePanel(point)) {
+      lastPoint = null;
+      return;
+    }
+
+    scratchTo(point);
+    scheduleProgressCheck();
+
+    event.preventDefault();
+  });
+
+  function stopScratching() {
+    if (!isDrawing) return;
+
+    isDrawing = false;
+    lastPoint = null;
+    scheduleProgressCheck();
+  }
+
+  canvas.addEventListener("pointerup", stopScratching);
+  canvas.addEventListener("pointercancel", stopScratching);
+  canvas.addEventListener("lostpointercapture", stopScratching);
+
+  revealButton.addEventListener("click", revealInvitation);
+
+  /*
+    Reset restores Image 0 and the complete silver coating.
+  */
+
+  resetButton.addEventListener("click", () => {
+    isComplete = false;
+    isDrawing = false;
+    lastPoint = null;
+
+    stage.classList.remove("complete");
+    finalImage.classList.remove("visible");
+
+    initializeCanvas();
+  });
+
+  /*
+    Resize safely on mobile rotation and browser resizing.
+    A resize before completion redraws the coating.
+  */
+
+  if ("ResizeObserver" in window) {
+    resizeObserver = new ResizeObserver(() => {
+      if (!isComplete) initializeCanvas();
+    });
+
+    resizeObserver.observe(stage);
+  } else {
+    window.addEventListener("resize", () => {
+      if (!isComplete) initializeCanvas();
+    });
+  }
+
+  /*
+    Report broken image URLs instead of leaving a blank page.
+  */
+
+  baseImage.addEventListener("error", () => {
+    status.classList.add("error");
+    status.textContent =
+      "Image 0 failed to load. Verify the GitHub image URL and filename.";
+  });
+
+  finalImage.addEventListener("error", () => {
+    status.classList.add("error");
+    status.textContent =
+      "Image 1 failed to load. Verify the GitHub image URL and filename.";
+  });
+
+  // Initialize only after the base image has loaded.
+  if (baseImage.complete && baseImage.naturalWidth) {
+    initializeCanvas();
+  } else {
+    baseImage.addEventListener("load", initializeCanvas, {
+      once: true
+    });
+  }
+
+})();
+</script>
+
+</body>
+</html>
